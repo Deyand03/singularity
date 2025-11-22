@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class ProgramMagang extends StatelessWidget {
-  const ProgramMagang({super.key});
+class DetailProgram extends StatelessWidget {
+  const DetailProgram({super.key});
 
   @override
   Widget build(BuildContext context) {
