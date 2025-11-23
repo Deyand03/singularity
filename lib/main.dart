@@ -9,13 +9,8 @@ import 'package:singularity/pages/mitra/tambah_program.dart';
 import 'package:singularity/pages/program_magang.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
-void main()  {
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+void main() {
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -24,10 +19,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF19A7CE)),
       ),
-      initialRoute: '/beranda',
+      initialRoute: '/',
       routes: {
         '/': (context) => LoginPage(),
         '/register': (context) => RegisterPage(),

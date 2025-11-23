@@ -8,23 +8,19 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-
   bool _rememberMe = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final Color _primaryColor = const Color(0xFF0D47A1); 
-  final Color _lightColor = const Color(0xFF42A5F5); 
+  final Color _primaryColor = const Color(0xFF0D47A1);
+  final Color _lightColor = const Color(0xFF42A5F5);
 
   void _handleLogin() {
-    print('--- Tombol Login Ditekan ---');
-    print('Email: ${_emailController.text}');
-    print('Password: ${_passwordController.text}');
-    print('Ingat saya: $_rememberMe');
+    Navigator.pushReplacementNamed(context, '/beranda');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Simulasi Login berhasil!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Simulasi Login berhasil!')));
   }
 
   void _handleForgotPassword() {
@@ -40,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white, 
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +44,10 @@ class _LoginPageState extends State<LoginPage> {
             _buildHeader(screenHeight),
 
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 27.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 27.0,
+                vertical: 20.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -104,7 +103,8 @@ class _LoginPageState extends State<LoginPage> {
                               },
                               activeColor: _primaryColor,
                               checkColor: Colors.white,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
                           const Text('Ingat saya'),
@@ -170,8 +170,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-
-
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,
@@ -190,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
         prefixIcon: Icon(icon, color: Colors.grey),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide.none, 
+          borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 15.0),
       ),
@@ -198,7 +196,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildHeader(double screenHeight) {
-    final headerHeight = screenHeight * 0.40; 
+    final headerHeight = screenHeight * 0.40;
 
     return Container(
       height: headerHeight,
@@ -230,8 +228,8 @@ class _LoginPageState extends State<LoginPage> {
                     BoxShadow(
                       color: Colors.black.withOpacity(0.2),
                       blurRadius: 10,
-                    )
-                  ]
+                    ),
+                  ],
                 ),
                 child: Icon(Icons.person, size: 80, color: _primaryColor),
               ),
@@ -243,7 +241,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-
 class LoginClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
@@ -252,11 +249,21 @@ class LoginClipper extends CustomClipper<Path> {
 
     var controlPoint1 = Offset(size.width * 0.25, size.height * 1.0);
     var endPoint1 = Offset(size.width * 0.5, size.height * 0.85);
-    path.quadraticBezierTo(controlPoint1.dx, controlPoint1.dy, endPoint1.dx, endPoint1.dy);
+    path.quadraticBezierTo(
+      controlPoint1.dx,
+      controlPoint1.dy,
+      endPoint1.dx,
+      endPoint1.dy,
+    );
 
     var controlPoint2 = Offset(size.width * 0.75, size.height * 0.75);
     var endPoint2 = Offset(size.width, size.height * 0.85);
-    path.quadraticBezierTo(controlPoint2.dx, controlPoint2.dy, endPoint2.dx, endPoint2.dy);
+    path.quadraticBezierTo(
+      controlPoint2.dx,
+      controlPoint2.dy,
+      endPoint2.dx,
+      endPoint2.dy,
+    );
 
     path.lineTo(size.width, 0);
 

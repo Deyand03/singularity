@@ -7,17 +7,12 @@ class BerandaPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsetsGeometry.symmetric(horizontal: 20),
           child: Column(
             children: [
-              Stack(
-                children: [Container(height: 110, color: Colors.deepPurple)],
-              ),
+              Stack(children: []),
             ],
           ),
         ),
