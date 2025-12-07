@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF19A7CE)),
       ),
-      initialRoute: '/',
+      initialRoute: '/mahasiswa/profile_mahasiswa',
       routes: {
         '/': (context) => LoginPage(),
         '/register': (context) => RegisterPage(),
