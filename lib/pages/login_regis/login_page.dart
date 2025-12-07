@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:singularity/components/main_wrapper.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,11 +13,11 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final Color _primaryColor = const Color(0xFF0D47A1);
-  final Color _lightColor = const Color(0xFF42A5F5);
+  final Color _primaryColor = const Color(0xFF1880AB);
+  final Color _lightColor = const Color(0xFF28A3CF);
 
   void _handleLogin() {
-    Navigator.pushReplacementNamed(context, '/beranda');
+    Navigator.pushReplacementNamed(context, '/main');
 
     ScaffoldMessenger.of(
       context,
@@ -28,7 +29,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleRegister() {
-    print('Daftar Ditekan');
+    Navigator.pushReplacementNamed(context, '/register');
   }
 
   @override
@@ -218,20 +219,10 @@ class _LoginPageState extends State<LoginPage> {
           Center(
             child: Padding(
               padding: const EdgeInsets.only(top: 30.0),
-              child: Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(75),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-                child: Icon(Icons.person, size: 80, color: _primaryColor),
+              child: Image.asset(
+                'assets/images/Logo_Login.png',
+                height: headerHeight * 0.7,
+                fit: BoxFit.contain,
               ),
             ),
           ),
