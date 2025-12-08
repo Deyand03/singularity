@@ -7,14 +7,18 @@ environment:
   sdk: ^3.8.1
 
 dependencies:
+  carousel_slider: ^5.1.1
   flutter:
     sdk: flutter
   flutter_riverpod: ^3.0.3
+  google_fonts: ^6.3.2
+  supabase: ^2.10.0
+  supabase_flutter: ^2.10.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
