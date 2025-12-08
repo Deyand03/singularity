@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:singularity/pages/beranda_page.dart';
 import 'package:singularity/pages/mahasiswa/profile_mahasiswa.dart';
-import 'package:singularity/pages/program_magang.dart';
 import "package:singularity/components/custom_nav_mhs.dart";
+import 'package:singularity/pages/program_magang.dart';
 
 // HANYA INI YANG PERLU STATEFUL
 class MainScaffold extends StatefulWidget {

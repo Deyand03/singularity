@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:singularity/components/main_wrapper.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
