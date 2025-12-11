@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Import Riverpod
 import 'package:singularity/pages/beranda_page.dart';
 import 'package:singularity/pages/mahasiswa/profile_mahasiswa.dart';
 import "package:singularity/components/custom_nav_mhs.dart";
 import 'package:singularity/pages/program_magang.dart';
+import '../providers/nav_provider.dart';
 
-// HANYA INI YANG PERLU STATEFUL
-class MainScaffold extends StatefulWidget {
+// Ubah jadi ConsumerStatefulWidget
+class MainScaffold extends ConsumerStatefulWidget {
   const MainScaffold({super.key});
 
   @override
-  State<MainScaffold> createState() => _MainScaffoldState();
+  ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
 
-class _MainScaffoldState extends State<MainScaffold> {
-  int _currentIndex = 0;
-
+class _MainScaffoldState extends ConsumerState<MainScaffold> {
   final List<Widget> _pages = [
     const BerandaPage(), // Index 0
     const ProgramMagang(), // Index 1
@@ -23,17 +24,26 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: _pages[_currentIndex],
+    final currentIndex = ref.watch(navIndexProvider);
 
-      bottomNavigationBar: CustomNavMhs(
-        currentIndex: _currentIndex,
-        onTap: (indexBaru) {
-          setState(() {
-            _currentIndex = indexBaru;
-          });
-        },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        extendBody: true,
+
+        body: _pages[currentIndex],
+
+        bottomNavigationBar: CustomNavMhs(
+          currentIndex: currentIndex,
+          onTap: (indexBaru) {
+            // 4. Update Remote pas tombol navbar dipencet
+            ref.read(navIndexProvider.notifier).state = indexBaru;
+          },
+        ),
       ),
     );
   }

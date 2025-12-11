@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:singularity/components/main_wrapper.dart';
@@ -14,6 +15,7 @@ Future<void> main() async {
     url: 'https://zeqvmguktywqoroodkbn.supabase.co',
     anonKey: 'sb_publishable_xBnzrY0eoJCACNSp2_4-tA_XqkFfWz2',
   );
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -26,15 +28,82 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: "Interngate",
       theme: ThemeData(
-        textTheme: GoogleFonts.poppinsTextTheme(),
+        textTheme: GoogleFonts.plusJakartaSansTextTheme(),
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF19A7CE)),
       ),
+      builder: (context, child) =>
+          Stack(children: [child!, const InternetStatusOverlay()]),
       home: const AuthGate(),
       routes: {
         '/login': (context) => LoginPage(),
         '/register': (context) => RegisterPage(),
         '/main': (context) => MainScaffold(),
       },
+    );
+  }
+}
+
+class InternetStatusOverlay extends StatefulWidget {
+  const InternetStatusOverlay({super.key});
+
+  @override
+  State<InternetStatusOverlay> createState() => _InternetStatusOverlayState();
+}
+
+class _InternetStatusOverlayState extends State<InternetStatusOverlay> {
+  bool _isOffline = false; // Default anggap online
+
+  @override
+  void initState() {
+    super.initState();
+    // Mulai dengerin perubahan sinyal
+    Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
+      // Kalau results mengandung 'none', berarti gak ada koneksi
+      final isOffline = results.contains(ConnectivityResult.none);
+
+      if (mounted) {
+        setState(() {
+          _isOffline = isOffline;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Kalau Online, jangan tampilin apa-apa (SizedBox kosong)
+    if (!_isOffline) return const SizedBox.shrink();
+
+    // Kalau Offline, tampilin Banner Merah di bawah
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Material(
+        // Butuh Material biar gak error garis kuning
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: const BoxDecoration(color: Colors.redAccent),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text(
+                "Tidak ada koneksi internet!",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -55,7 +124,7 @@ class AuthGate extends StatelessWidget {
 
         final session = snapshot.data?.session;
         if (session != null) {
-          return const MainScaffold();
+          return MainScaffold();
         } else {
           return LoginPage();
         }

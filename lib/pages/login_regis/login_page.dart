@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:singularity/utility/supabase.client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -8,19 +10,79 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  bool _isLoading = false;
   bool _rememberMe = false;
+
+  // State buat mata ngintip password
+  bool _obscurePassword = true;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final Color _primaryColor = const Color(0xFF1880AB);
+  final Color _primaryColor = const Color(
+    0xFF19A7CE,
+  ); // Sesuaikan warna tema biru kamu
   final Color _lightColor = const Color(0xFF28A3CF);
 
-  void _handleLogin() {
-    Navigator.pushReplacementNamed(context, '/main');
+  Future<void> _handleLogin() async {
+    // 1. Validasi Input Kosong
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Waduh, Email sama Password harus diisi!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Simulasi Login berhasil!')));
+    // 2. Mulai Loading
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // 3. TEMBAK KE SUPABASE 🚀
+      await supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login Berhasil! Selamat datang.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pushReplacementNamed(context, '/main');
+      }
+    } on AuthException catch (e) {
+      // 5. ERROR DARI SUPABASE
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      // 6. ERROR LAINNYA
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan koneksi, coba lagi ya. $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      // 7. BERHENTI LOADING
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _handleForgotPassword() {
@@ -28,7 +90,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleRegister() {
-    Navigator.pushReplacementNamed(context, '/register');
+    Navigator.pushNamed(context, '/register');
   }
 
   @override
@@ -78,11 +140,12 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 15),
 
+                  // INPUT PASSWORD DENGAN TOGGLE
                   _buildInputField(
                     controller: _passwordController,
                     hintText: 'Password',
                     icon: Icons.lock_outline,
-                    obscureText: true,
+                    isPassword: true, // Flag khusus password
                   ),
                   const SizedBox(height: 15),
 
@@ -125,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 25),
 
                   ElevatedButton(
-                    onPressed: _handleLogin,
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _primaryColor,
                       minimumSize: const Size(double.infinity, 50),
@@ -134,14 +197,23 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       elevation: 5,
                     ),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 20),
 
@@ -170,22 +242,42 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // UPDATED: Tambah parameter isPassword
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
-    bool obscureText = false,
+    bool isPassword = false, // Default false
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      obscureText: obscureText,
+      // Kalau password, ikutin state _obscurePassword. Kalau bukan, false.
+      obscureText: isPassword ? _obscurePassword : false,
       decoration: InputDecoration(
         hintText: hintText,
         filled: true,
         fillColor: Colors.white,
         prefixIcon: Icon(icon, color: Colors.grey),
+
+        // SUFFIX ICON: Tombol Mata (Cuma muncul kalau isPassword = true)
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              )
+            : null,
+
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
           borderSide: BorderSide.none,
@@ -198,7 +290,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildHeader(double screenHeight) {
     final headerHeight = screenHeight * 0.40;
 
-    return Container(
+    return SizedBox(
       height: headerHeight,
       child: Stack(
         children: <Widget>[
@@ -222,6 +314,8 @@ class _LoginPageState extends State<LoginPage> {
                 'assets/images/Logo_Login.png',
                 height: headerHeight * 0.7,
                 fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.school, size: 100, color: Colors.white),
               ),
             ),
           ),

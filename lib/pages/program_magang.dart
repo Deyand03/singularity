@@ -1,143 +1,258 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../providers/program_provider.dart';
+import '../providers/nav_provider.dart'; // Jangan lupa import nav provider
 import 'detail_program_magang.dart';
 import 'dart:math';
 
-class ProgramMagang extends StatefulWidget {
+class ProgramMagang extends ConsumerStatefulWidget {
   const ProgramMagang({super.key});
 
   @override
-  State<ProgramMagang> createState() => _ProgramMagangState();
+  ConsumerState<ProgramMagang> createState() => _ProgramMagangState();
 }
 
-class _ProgramMagangState extends State<ProgramMagang> {
+class _ProgramMagangState extends ConsumerState<ProgramMagang> {
   int _currentPage = 1;
   final int _itemsPerPage = 10;
 
-  // DUMMY DATA
-  // Nanti ini diganti dengan data dari API/Database
-  final List<Map<String, String>> _allPrograms = List.generate(
-    50,
-    (index) => {
-      'company': 'PT. Moonton ${index + 1}',
-      'title': 'Program Bootcamp MDL ${index + 1} yang Intens',
-      'address': 'Jl. Yang Benar No. ${index + 1}, Jakarta',
-      'quota': '${(index + 1) * 10}',
-      'image_url':
-          'https://i0.wp.com/www.lapakgaming.com/blog/id-id/wp-content/uploads/2025/10/MLBB-9th-Anniv-P.ACE-Cici-9th-Anniversary.jpg?fit=1200%2C675&ssl=1',
-    },
-  );
+  final List<String> _categories = [
+    "Semua",
+    "Web Developer",
+    "Mobile Developer",
+    "UI/UX Designer",
+    "DevOps",
+    "CyberSecurity",
+  ];
 
   @override
   Widget build(BuildContext context) {
-    // LOGIKA PAGINATION
+    // 1. BACA KATEGORI DARI PROVIDER (Bukan state lokal lagi)
+    final selectedCategory = ref.watch(selectedCategoryProvider);
 
-    int totalPages = (_allPrograms.length / _itemsPerPage).ceil();
-    int startIndex = (_currentPage - 1) * _itemsPerPage;
-    int endIndex = min(startIndex + _itemsPerPage, _allPrograms.length);
-
-    List<Map<String, String>> currentData = _allPrograms.sublist(
-      startIndex,
-      endIndex,
-    );
+    // 2. MINTA DATA SESUAI KATEGORI
+    final programAsyncValue = ref.watch(programListProvider(selectedCategory));
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      resizeToAvoidBottomInset: false,
-
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF146C94),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Daftar Program Tersedia',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-
+      backgroundColor: const Color(0xFFF8F9FA),
       body: Column(
         children: [
-          _buildSearchBar(),
+          _buildCustomHeader(),
 
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.only(top: 8),
-              itemCount: currentData.length + 1,
-              itemBuilder: (context, index) {
-                if (index == currentData.length) {
-                  return _buildPaginationControl(totalPages);
-                }
+            child: programAsyncValue.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text("Error: $err")),
+              data: (allPrograms) {
+                if (allPrograms.isEmpty)
+                  return _buildEmptyState(ref); // Pass ref buat reset
 
-                final program = currentData[index];
-                return ProgramCard(
-                  companyName: program['company']!,
-                  programTitle: program['title']!,
-                  address: program['address']!,
-                  quota: program['quota']!,
-                  imageUrl: program['image_url']!,
+                int totalPages = (allPrograms.length / _itemsPerPage).ceil();
+                if (_currentPage > totalPages && totalPages > 0)
+                  _currentPage = 1;
+
+                int startIndex = (_currentPage - 1) * _itemsPerPage;
+                int endIndex = min(
+                  startIndex + _itemsPerPage,
+                  allPrograms.length,
+                );
+                final currentData = allPrograms.sublist(startIndex, endIndex);
+
+                return ListView(
+                  padding: const EdgeInsets.only(top: 0, bottom: 100),
+                  children: [
+                    const SizedBox(height: 10),
+                    // Pass ref ke Category List
+                    _buildCategoryList(ref, selectedCategory),
+                    const SizedBox(height: 10),
+
+                    ...currentData.map((program) {
+                      final mitra = program['mitra'] ?? {};
+                      return ProgramCard(
+                        companyName: mitra['nama_perusahaan'] ?? 'Unknown',
+                        programTitle: program['judul'] ?? 'No Title',
+                        address: mitra['alamat_perusahaan'] ?? '-',
+                        quota: program['kuota'].toString(),
+                        imageUrl:
+                            program['gambar'] ??
+                            'https://via.placeholder.com/200',
+                        category: program['kategori'] ?? '-',
+                        status: program['status_magang'] ?? 'tutup',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DetailProgramPage(
+                                id: program['id'],
+                                title: program['judul'],
+                                companyName: mitra['nama_perusahaan'],
+                                address: mitra['alamat_perusahaan'],
+                                imageUrl: program['gambar'],
+                                quota: program['kuota'].toString(),
+                                description:
+                                    program['deskripsi_program'] ?? '-',
+                                qualification: program['kualifikasi'] ?? '-',
+                                status: program['status_magang'] ?? 'tutup',
+                                deadline:
+                                    program['batas_pendaftaran'] ??
+                                    DateTime.now().toString(),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }),
+
+                    if (allPrograms.isNotEmpty)
+                      _buildPaginationControl(totalPages),
+                  ],
                 );
               },
             ),
           ),
         ],
       ),
+    );
+  }
 
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-        currentIndex: 1,
-        selectedItemColor: const Color(0xFF146C94),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Lowongan'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
+  Widget _buildEmptyState(WidgetRef ref) {
+    final selectedCategory = ref.read(selectedCategoryProvider);
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        _buildCategoryList(ref, selectedCategory),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.search_off_rounded,
+                size: 60,
+                color: Colors.grey.shade300,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Belum ada lowongan di kategori ini",
+                style: GoogleFonts.plusJakartaSans(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- WIDGET HELPER UPDATE (Pakai Provider) ---
+  Widget _buildCategoryList(WidgetRef ref, String currentCategory) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: _categories.map((category) {
+          bool isSelected = currentCategory == category;
+          return GestureDetector(
+            onTap: () {
+              // UPDATE PROVIDER GLOBAL
+              ref.read(selectedCategoryProvider.notifier).state = category;
+              setState(() => _currentPage = 1);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF19A7CE) : Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: isSelected ? Colors.transparent : Colors.grey.shade200,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF19A7CE).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : [],
+              ),
+              child: Text(
+                category,
+                style: GoogleFonts.plusJakartaSans(
+                  color: isSelected ? Colors.white : Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildSearchBar() {
+  // ... (Header dan Pagination sama, cuma perlu penyesuaian kalau ada referensi lokal)
+  Widget _buildCustomHeader() {
     return Container(
-      padding: const EdgeInsets.all(16.0),
-      color: Colors.white,
-      child: Row(
+      padding: const EdgeInsets.only(top: 50, left: 24, right: 24, bottom: 24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF19A7CE),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Cari Program',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              ),
+          Text(
+            'Temukan Peluang',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 14,
             ),
           ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E98D0),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+          Text(
+            'Program Magang',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Cari posisi atau perusahaan...',
+                hintStyle: GoogleFonts.plusJakartaSans(
+                  color: Colors.grey.shade400,
+                  fontSize: 14,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF19A7CE),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 15,
+                ),
               ),
             ),
-            child: const Text('Cari'),
           ),
         ],
       ),
@@ -145,52 +260,65 @@ class _ProgramMagangState extends State<ProgramMagang> {
   }
 
   Widget _buildPaginationControl(int totalPages) {
-    const mainColor = Color(0xFF146C94);
-    const disabledColor = Colors.grey;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20.0),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: Icon(
-              Icons.chevron_left,
-              color: _currentPage > 1 ? mainColor : disabledColor,
-            ),
-            onPressed: _currentPage > 1
-                ? () {
-                    setState(() {
-                      _currentPage--;
-                    });
-                  }
+          InkWell(
+            onTap: _currentPage > 1
+                ? () => setState(() => _currentPage--)
                 : null,
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Text(
-              '$_currentPage',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: mainColor,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _currentPage > 1 ? Colors.white : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _currentPage > 1
+                      ? const Color(0xFF19A7CE)
+                      : Colors.grey.shade300,
+                ),
+              ),
+              child: Icon(
+                Icons.chevron_left_rounded,
+                color: _currentPage > 1
+                    ? const Color(0xFF19A7CE)
+                    : Colors.grey.shade400,
               ),
             ),
           ),
-
-          IconButton(
-            icon: Icon(
-              Icons.chevron_right,
-              color: _currentPage < totalPages ? mainColor : disabledColor,
+          Text(
+            'Halaman $_currentPage dari $totalPages',
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
             ),
-            onPressed: _currentPage < totalPages
-                ? () {
-                    setState(() {
-                      _currentPage++;
-                    });
-                  }
+          ),
+          InkWell(
+            onTap: _currentPage < totalPages
+                ? () => setState(() => _currentPage++)
                 : null,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _currentPage < totalPages
+                    ? Colors.white
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _currentPage < totalPages
+                      ? const Color(0xFF19A7CE)
+                      : Colors.grey.shade300,
+                ),
+              ),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: _currentPage < totalPages
+                    ? const Color(0xFF19A7CE)
+                    : Colors.grey.shade400,
+              ),
+            ),
           ),
         ],
       ),
@@ -198,136 +326,197 @@ class _ProgramMagangState extends State<ProgramMagang> {
   }
 }
 
+// ... ProgramCard tetap sama ...
 class ProgramCard extends StatelessWidget {
   final String companyName;
   final String programTitle;
   final String address;
   final String quota;
   final String imageUrl;
+  final String category;
+  final String status;
+  final VoidCallback onTap;
 
   const ProgramCard({
-    Key? key,
+    super.key,
     required this.companyName,
     required this.programTitle,
     required this.address,
     required this.quota,
     required this.imageUrl,
-  }) : super(key: key);
+    required this.category,
+    required this.status,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-        side: BorderSide(color: Colors.grey.shade200),
+    final isBuka = status.toLowerCase() == 'buka';
+    final statusColor = isBuka ? Colors.green : Colors.red;
+    final statusBg = isBuka ? Colors.green.shade50 : Colors.red.shade50;
+    final statusText = isBuka ? "Buka" : "Tutup";
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 110,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8.0),
-                  color: Colors.grey[200],
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: Image.network(
-                    'https://i0.wp.com/www.lapakgaming.com/blog/id-id/wp-content/uploads/2025/10/MLBB-9th-Anniv-P.ACE-Cici-9th-Anniversary.jpg?fit=1200%2C675&ssl=1',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    image: DecorationImage(
+                      image: NetworkImage(imageUrl),
+                      fit: BoxFit.cover,
+                      onError: (e, s) {},
                     ),
                   ),
                 ),
-              ),
-
-              const SizedBox(width: 12.0),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      companyName,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF146C94),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      programTitle,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      address,
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      'Kuota: $quota',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 12),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 32,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DetailProgramPage(
-                                title: programTitle,
-                                companyName: companyName,
-                                address: address,
-                                imageUrl: imageUrl,
-                                quota: quota,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF19A7CE).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              category,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF19A7CE),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF5C219),
-                          foregroundColor: Colors.black,
-                          elevation: 0,
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
                           ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: statusColor.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  statusText,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: statusColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        programTitle,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          height: 1.2,
                         ),
-                        child: const Text(
-                          'Lihat Selengkapnya',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        companyName,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              address,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.people_outline,
+                            size: 14,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "$quota Slot",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
