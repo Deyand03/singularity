@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -233,9 +235,9 @@ class ProfileMahasiswa extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
 
-              _buildFileTile(context, "Curriculum Vitae (CV)", cvUrl),
+              _fileTile(context, "Curriculum Vitae (CV)", cvUrl),
               const SizedBox(height: 10),
-              _buildFileTile(context, "Transkrip Nilai", transkripUrl),
+              _fileTile(context, "Transkrip Nilai", transkripUrl),
 
               const SizedBox(height: 30),
             ],
@@ -245,75 +247,95 @@ class ProfileMahasiswa extends ConsumerWidget {
     );
   }
 
-  // --- WIDGET FILE TILE YANG DIPERBAIKI ---
-  Widget _buildFileTile(BuildContext context, String label, String? url) {
-    bool isValidUrl = url != null && url.startsWith('http');
-
-    return ListTile(
-      onTap: () async {
-        if (!isValidUrl) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Ini data dummy, belum ada file asli."),
+  Widget _fileTile(BuildContext context, String label, String? url) {
+    return InkWell(
+      onTap: () => _openFile(context, label, url),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade100),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.insert_drive_file_outlined,
+                color: primaryColor,
+              ),
             ),
-          );
-          return;
-        }
-
-        try {
-          final uri = Uri.parse(url!);
-          // Coba cara standar dulu
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          } else {
-            // Kalau gagal, paksa buka (fallback)
-            debugPrint(
-              "Could not launch $url with standard check, trying force launch...",
-            );
-            await launchUrl(
-              uri,
-              mode: LaunchMode.externalNonBrowserApplication,
-            );
-          }
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text("Gagal membuka file: $e")));
-          }
-        }
-      },
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      leading: Icon(
-        Icons.picture_as_pdf_rounded,
-        color: isValidUrl ? Colors.red : Colors.grey,
-      ),
-      title: Text(
-        label,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.open_in_new, size: 18, color: primaryColor),
+          ],
         ),
       ),
-      subtitle: !isValidUrl
-          ? Text(
-              "Data Dummy",
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 10,
-                color: Colors.orange,
-              ),
-            )
-          : null,
-      trailing: Icon(
-        Icons.open_in_new_rounded,
-        size: 18,
-        color: isValidUrl ? primaryColor : Colors.grey,
-      ),
     );
+  }
+
+  Future<void> _openFile(
+    BuildContext context,
+    String label,
+    String? url,
+  ) async {
+    // 1. Cek apakah URL valid (tidak null dan tidak kosong)
+    if (url == null || url.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("$label tidak ditemukan (URL Kosong)"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      Uri uri;
+      if (Platform.isAndroid && url.toLowerCase().contains('.pdf')) {
+        // Kita encode URL aslinya biar aman masuk ke parameter query
+        final encodedUrl = Uri.encodeComponent(url);
+        uri = Uri.parse("https://docs.google.com/viewer?url=$encodedUrl");
+      } else {
+        // Untuk iOS atau bukan PDF (misal gambar), buka link aslinya
+        uri = Uri.parse(url);
+      }
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      // Tangkap error kodingan (misal URL formatnya aneh)
+      debugPrint("Error launching URL: $e");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Gagal membuka $label: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // --- TABEL ---
@@ -386,9 +408,6 @@ class ProfileMahasiswa extends ConsumerWidget {
             return InkWell(
               // BUNGKUS DENGAN INKWELL BIAR BISA DIKLIK
               onTap: () => _showApplicationDetail(context, data),
-              borderRadius: BorderRadius.circular(
-                16,
-              ), // Efek ripple ngikutin border
               child: Column(
                 children: [
                   Padding(
@@ -702,16 +721,26 @@ class ProfileMahasiswa extends ConsumerWidget {
     Color color;
     Color bg;
     final s = status.toLowerCase();
+
+    // UPDATE LOGIC WARNA STATUS
     if (s == 'diterima') {
       color = Colors.green;
       bg = Colors.green.shade50;
     } else if (s == 'ditolak') {
       color = Colors.red;
       bg = Colors.red.shade50;
+    } else if (s == 'berlangsung') {
+      color = Colors.blue;
+      bg = Colors.blue.shade50;
+    } else if (s == 'selesai') {
+      color = Colors.purple;
+      bg = Colors.purple.shade50;
     } else {
+      // Default / Pending
       color = Colors.orange;
       bg = Colors.orange.shade50;
     }
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       decoration: BoxDecoration(
@@ -719,7 +748,7 @@ class ProfileMahasiswa extends ConsumerWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        status[0].toUpperCase() + status.substring(1),
+        s[0].toUpperCase() + s.substring(1),
         textAlign: TextAlign.center,
         style: GoogleFonts.plusJakartaSans(
           fontSize: 10,

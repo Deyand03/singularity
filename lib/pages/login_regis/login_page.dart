@@ -19,11 +19,10 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final Color _primaryColor = const Color(
-    0xFF19A7CE,
-  ); // Sesuaikan warna tema biru kamu
+  final Color _primaryColor = const Color(0xFF19A7CE);
   final Color _lightColor = const Color(0xFF28A3CF);
 
+  // --- LOGIC LOGIN & CEK ROLE ---
   Future<void> _handleLogin() async {
     // 1. Validasi Input Kosong
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -36,57 +35,69 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // 2. Mulai Loading
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // 3. TEMBAK KE SUPABASE 🚀
-      await supabase.auth.signInWithPassword(
+      // 2. TEMBAK LOGIN KE SUPABASE 🚀
+      final authResponse = await supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login Berhasil! Selamat datang.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      final user = authResponse.user;
 
-        Navigator.pushReplacementNamed(context, '/main');
+      if (user != null) {
+        // 3. CEK ROLE USER (Manual Check biar akurat)
+        // Kita ambil data role dari tabel 'users'
+        final userData = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        final role = userData?['role'] ?? 'mahasiswa'; // Default mahasiswa
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login Berhasil! Selamat datang.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // 4. NAVIGASI SESUAI ROLE (Langsung ganti halaman)
+          if (role == 'mitra') {
+            Navigator.pushReplacementNamed(context, '/mitra/home');
+          } else {
+            Navigator.pushReplacementNamed(context, '/beranda');
+          }
+        }
       }
     } on AuthException catch (e) {
-      // 5. ERROR DARI SUPABASE
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
-      // 6. ERROR LAINNYA
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Terjadi kesalahan koneksi, coba lagi ya. $e'),
+            content: Text('Terjadi kesalahan: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } finally {
-      // 7. BERHENTI LOADING
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _handleForgotPassword() {
-    print('Lupa Password Ditekan');
+    // TODO: Implementasi Reset Password
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Fitur Lupa Password segera hadir!")),
+    );
   }
 
   void _handleRegister() {
@@ -140,12 +151,12 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 15),
 
-                  // INPUT PASSWORD DENGAN TOGGLE
+                  // INPUT PASSWORD (Ada Mata-nya)
                   _buildInputField(
                     controller: _passwordController,
                     hintText: 'Password',
                     icon: Icons.lock_outline,
-                    isPassword: true, // Flag khusus password
+                    isPassword: true, // Aktifkan mode password
                   ),
                   const SizedBox(height: 15),
 
@@ -242,18 +253,17 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // UPDATED: Tambah parameter isPassword
   Widget _buildInputField({
     required TextEditingController controller,
     required String hintText,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
-    bool isPassword = false, // Default false
+    bool isPassword = false, // Parameter baru
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      // Kalau password, ikutin state _obscurePassword. Kalau bukan, false.
+      // Logic intip password
       obscureText: isPassword ? _obscurePassword : false,
       decoration: InputDecoration(
         hintText: hintText,
@@ -261,7 +271,7 @@ class _LoginPageState extends State<LoginPage> {
         fillColor: Colors.white,
         prefixIcon: Icon(icon, color: Colors.grey),
 
-        // SUFFIX ICON: Tombol Mata (Cuma muncul kalau isPassword = true)
+        // Tombol Mata (Suffix Icon)
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(

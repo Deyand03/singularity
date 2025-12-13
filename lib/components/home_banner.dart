@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:singularity/providers/common.provider.dart';
+import 'package:singularity/providers/mahasiswa_beranda_provider.dart';
 
 class HomeBannerCarousel extends ConsumerWidget {
   const HomeBannerCarousel({super.key});

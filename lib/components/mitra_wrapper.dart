@@ -1,37 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:singularity/pages/mitra/dashboard_mitra.dart';
+import 'package:singularity/pages/mitra/lowongan_mitra.dart';
+import 'package:singularity/pages/mitra/pelamar_mitra.dart';
 import 'package:singularity/pages/mitra/profile_mitra.dart';
 import 'package:singularity/pages/mitra/tambah_program.dart';
-import '../../components/custom_nav_mitra.dart'; // Import Component Baru
+import '../../components/custom_nav_mitra.dart';
+import '../../providers/nav_provider.dart'; 
 
-class MainScaffoldMitra extends StatefulWidget {
+// Ubah jadi ConsumerStatefulWidget
+class MainScaffoldMitra extends ConsumerStatefulWidget {
   const MainScaffoldMitra({super.key});
 
   @override
-  State<MainScaffoldMitra> createState() => _MainScaffoldMitraState();
+  ConsumerState<MainScaffoldMitra> createState() => _MainScaffoldMitraState();
 }
 
-class _MainScaffoldMitraState extends State<MainScaffoldMitra> {
-  int _currentIndex = 0;
+class _MainScaffoldMitraState extends ConsumerState<MainScaffoldMitra> {
 
-  // DAFTAR HALAMAN MITRA (5 MENU)
   final List<Widget> _pages = [
-    const DashboardMitra(), // 0. Beranda/Dashboard
-    const PlaceholderListLoker(), // 1. Kelola Loker (Placeholder)
-    const TambahProgram(), // 2. TAMBAH (Tengah)
-    const PlaceholderListPelamar(), // 3. Pelamar (Placeholder)
-    const ProfileMitra(), // 4. Profil
+    const DashboardMitra(),
+    const LowonganMitra(),
+    const TambahProgram(),
+    const PelamarPage(),
+    const ProfileMitra(), 
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(navIndexProvider.notifier).state = 0);
+  }
+
   void _onItemTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    ref.read(navIndexProvider.notifier).state = index;
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(navIndexProvider);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -39,59 +48,36 @@ class _MainScaffoldMitraState extends State<MainScaffoldMitra> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        // Body sesuai index yang dipilih
-        body: _pages[_currentIndex],
 
-        // --- TOMBOL TENGAH (FAB) ---
+        // Body berubah sesuai Provider
+        body: _pages[currentIndex],
+
+        // FAB (Tombol Tengah)
         floatingActionButton: SizedBox(
           width: 65,
           height: 65,
           child: FloatingActionButton(
             onPressed: () => _onItemTapped(2), // Pindah ke index 2 (Tambah)
-            backgroundColor: const Color(0xFF19A7CE), // Warna Tema Biru
-            shape: const CircleBorder(), // Bulat sempurna
-            elevation: 8, // Sedikit lebih tinggi biar pop-out
+            backgroundColor: const Color(0xFF19A7CE),
+            shape: const CircleBorder(),
+            elevation: 8,
             child: Icon(
               Icons.add_rounded,
               size: 32,
-              // Icon putih kalau aktif, agak transparan kalau gak aktif
-              color: _currentIndex == 2
+              color: currentIndex == 2
                   ? Colors.white
                   : Colors.white.withOpacity(0.9),
             ),
           ),
         ),
-        // Posisi FAB 'Nancep' di tengah Navbar
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-        // --- NAVBAR CUSTOM (IMPORT) ---
+        // Navbar Custom
         bottomNavigationBar: CustomNavMitra(
-          currentIndex: _currentIndex,
+          currentIndex: currentIndex,
           onTap: _onItemTapped,
         ),
       ),
-    );
-  }
-}
-
-// --- PLACEHOLDER PAGES ---
-
-class PlaceholderListLoker extends StatelessWidget {
-  const PlaceholderListLoker({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("Halaman Kelola Lowongan (Segera Hadir)")),
-    );
-  }
-}
-
-class PlaceholderListPelamar extends StatelessWidget {
-  const PlaceholderListPelamar({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("Halaman Review Pelamar (Segera Hadir)")),
     );
   }
 }

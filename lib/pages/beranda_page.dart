@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:singularity/pages/detail_program_magang.dart';
-import 'package:singularity/providers/common.provider.dart'; // Import Provider yang tadi dibuat
-import 'package:singularity/providers/nav_provider.dart';
+import 'package:singularity/providers/mahasiswa_beranda_provider.dart';
 import '../components/home_banner.dart';
+import 'detail_program_magang.dart';
+import '../providers/nav_provider.dart';
 
-// UBAH JADI CONSUMER WIDGET
 class BerandaPage extends ConsumerWidget {
   const BerandaPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. WATCH PROVIDERS (Dengerin data)
+    final userProfile = ref.watch(userProfileProvider);
     final dashboardStats = ref.watch(dashboardStatsProvider);
     final recentJobs = ref.watch(recentJobsProvider);
 
@@ -26,14 +25,10 @@ class BerandaPage extends ConsumerWidget {
             left: 0,
             right: 0,
             height: 280,
-            child: Stack(
-              children: [
-                const HomeBannerCarousel(), // Banner Gambar
-              ],
-            ),
+            child: Stack(children: [const HomeBannerCarousel()]),
           ),
 
-          // --- KONTEN UTAMA (Layer Putih) ---
+          // --- KONTEN UTAMA ---
           SingleChildScrollView(
             padding: const EdgeInsets.only(top: 240, bottom: 120),
             child: Column(
@@ -56,13 +51,12 @@ class BerandaPage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 1. DASHBOARD STATISTIK
+                      // 1. DASHBOARD STATISTIK (UPDATED: SCROLLABLE)
                       Transform.translate(
                         offset: const Offset(0, -40),
                         child: dashboardStats.when(
                           data: (stats) => _buildMiniDashboard(stats),
-                          loading: () =>
-                              _buildLoadingDashboard(), // Skeleton Loading
+                          loading: () => _buildLoadingDashboard(),
                           error: (_, __) => const SizedBox(),
                         ),
                       ),
@@ -81,23 +75,20 @@ class BerandaPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Pass context buat navigasi
                       _buildCategoryList(context, ref),
 
                       const SizedBox(height: 30),
 
                       // 3. LOWONGAN TERBARU
                       _buildSectionHeader("Lowongan Terbaru", () {
-                        // Reset kategori ke "Semua" kalau klik "Lihat Semua"
                         ref.read(selectedCategoryProvider.notifier).state =
                             "Semua";
-                        // Pindah Tab
                         ref.read(navIndexProvider.notifier).state = 1;
                       }),
 
                       const SizedBox(height: 10),
 
-                      // 4. LIST LOWONGAN (REAL DATA)
+                      // 4. LIST LOWONGAN
                       recentJobs.when(
                         data: (jobs) {
                           if (jobs.isEmpty) {
@@ -134,7 +125,7 @@ class BerandaPage extends ConsumerWidget {
     );
   }
 
-  // --- WIDGET DASHBOARD ---
+  // --- WIDGET DASHBOARD UPDATED ---
   Widget _buildMiniDashboard(Map<String, int> stats) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -150,35 +141,60 @@ class BerandaPage extends ConsumerWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildDashboardItem(
-            stats['Pending'].toString(),
-            "Pending",
-            Icons.hourglass_top_rounded,
-            Colors.orange,
-          ),
-          Container(width: 1, height: 40, color: Colors.grey.shade200),
-          _buildDashboardItem(
-            stats['Diterima'].toString(),
-            "Diterima",
-            Icons.check_circle_rounded,
-            Colors.green,
-          ),
-          Container(width: 1, height: 40, color: Colors.grey.shade200),
-          _buildDashboardItem(
-            stats['Ditolak'].toString(),
-            "Ditolak",
-            Icons.cancel_rounded,
-            Colors.red,
-          ),
-        ],
+      // Gunakan SingleChildScrollView horizontal biar muat banyak
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildDashboardItem(
+              stats['Pending'].toString(),
+              "Pending",
+              Icons.hourglass_top_rounded,
+              Colors.orange,
+            ),
+            _buildDivider(),
+            _buildDashboardItem(
+              stats['Diterima'].toString(),
+              "Diterima",
+              Icons.check_circle_rounded,
+              Colors.green,
+            ),
+            _buildDivider(),
+            _buildDashboardItem(
+              stats['Berlangsung'].toString(),
+              "Berlangsung",
+              Icons.play_arrow_rounded,
+              Colors.blue,
+            ),
+            _buildDivider(),
+            _buildDashboardItem(
+              stats['Selesai'].toString(),
+              "Selesai",
+              Icons.task_alt_rounded,
+              Colors.purple,
+            ),
+            _buildDivider(),
+            _buildDashboardItem(
+              stats['Ditolak'].toString(),
+              "Ditolak",
+              Icons.cancel_rounded,
+              Colors.red,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // Loading state buat dashboard biar cantik
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 40,
+      color: Colors.grey.shade200,
+      margin: const EdgeInsets.symmetric(horizontal: 15),
+    );
+  }
+
   Widget _buildLoadingDashboard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -228,7 +244,7 @@ class BerandaPage extends ConsumerWidget {
     );
   }
 
-  // --- WIDGET KATEGORI ---
+  // --- WIDGET KATEGORI & LAINNYA (TETAP SAMA) ---
   Widget _buildCategoryList(BuildContext context, WidgetRef ref) {
     final categories = [
       {"label": "Web Developer", "icon": Icons.code, "color": Colors.blue},
@@ -249,11 +265,8 @@ class BerandaPage extends ConsumerWidget {
         children: categories.map((cat) {
           return GestureDetector(
             onTap: () {
-              // 1. Set Kategori di Provider Global
               ref.read(selectedCategoryProvider.notifier).state =
                   cat['label'] as String;
-
-              // 2. Pindah Tab ke Halaman Program (Index 1)
               ref.read(navIndexProvider.notifier).state = 1;
             },
             child: _buildCategoryItem(
@@ -289,13 +302,12 @@ class BerandaPage extends ConsumerWidget {
             child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
-          // Bungkus teks biar gak overflow kalo kepanjangan
           SizedBox(
             width: 70,
             child: Text(
               label,
               textAlign: TextAlign.center,
-              maxLines: 2, // Maksimal 2 baris
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
@@ -309,15 +321,12 @@ class BerandaPage extends ConsumerWidget {
     );
   }
 
-  // --- WIDGET LOWONGAN CARD (DATA ASLI) ---
   Widget _buildJobCard(BuildContext context, Map<String, dynamic> job) {
-    // Ambil data relasi
     final mitra = job['mitra'] as Map<String, dynamic>? ?? {};
     final perusahaan = mitra['nama_perusahaan'] ?? 'Perusahaan';
     final logo = job['gambar'] ?? 'https://via.placeholder.com/100';
     final alamat = mitra['alamat_perusahaan'] ?? 'Lokasi tidak tersedia';
 
-    // Status Logic
     final status = job['status_magang'] ?? 'tutup';
     final isBuka = status.toLowerCase() == 'buka';
     final statusColor = isBuka ? Colors.green : Colors.red;
@@ -343,7 +352,6 @@ class BerandaPage extends ConsumerWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            // NAVIGASI KE DETAIL (Kirim Data Lengkap)
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -366,11 +374,10 @@ class BerandaPage extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, // Align Top
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. LOGO PERUSAHAAN
                 Container(
-                  width: 70, // Lebih gede dikit biar sama kayak halaman list
+                  width: 70,
                   height: 70,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
@@ -383,17 +390,13 @@ class BerandaPage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-
-                // 2. INFO TEXT
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Row: Kategori & Status (NEW FEATURE)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Badge Kategori
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -412,8 +415,6 @@ class BerandaPage extends ConsumerWidget {
                               ),
                             ),
                           ),
-
-                          // Badge Status
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -450,9 +451,7 @@ class BerandaPage extends ConsumerWidget {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 8),
-
                       Text(
                         job['judul'] ?? 'Posisi Magang',
                         maxLines: 1,
@@ -473,10 +472,7 @@ class BerandaPage extends ConsumerWidget {
                           color: Colors.grey.shade500,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
-                      // BADGE LOKASI & KUOTA (NEW FEATURE)
                       Row(
                         children: [
                           Icon(
@@ -497,7 +493,6 @@ class BerandaPage extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // Kuota
                           Icon(
                             Icons.people_outline,
                             size: 14,

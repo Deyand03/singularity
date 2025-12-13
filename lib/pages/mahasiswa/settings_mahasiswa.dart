@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:singularity/providers/common.provider.dart';
+import 'package:singularity/providers/mahasiswa_beranda_provider.dart';
 import 'package:singularity/providers/mahasiswa_provider.dart';
 import 'package:singularity/utility/supabase.client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:singularity/providers/common.provider.dart';
+import 'package:singularity/providers/mahasiswa_beranda_provider.dart';
 import '../utility/supabase.client.dart';
 
 class DetailProgramPage extends ConsumerStatefulWidget {
