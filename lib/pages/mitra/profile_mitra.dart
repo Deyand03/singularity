@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'tambah_program.dart';
 
 // NAMA CLASS SUDAH DIUBAH DI SINI
-class ProfilPerusahaan extends StatefulWidget {
-  const ProfilPerusahaan({super.key});
+class ProfileMitra extends StatefulWidget {
+  const ProfileMitra({super.key});
 
   @override
-  State<ProfilPerusahaan> createState() => ProfilPerusahaanState();
+  State<ProfileMitra> createState() => ProfileMitraState();
 }
 
-class ProfilPerusahaanState extends State<ProfilPerusahaan> {
+class ProfileMitraState extends State<ProfileMitra> {
   String _logoFileName = "No file chosen";
   String _bannerFileName = "No file chosen";
 

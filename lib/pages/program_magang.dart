@@ -1,13 +1,15 @@
+import 'dart:async'; // Butuh ini buat Timer
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/program_provider.dart';
-import '../providers/nav_provider.dart'; // Jangan lupa import nav provider
+import '../providers/nav_provider.dart';
 import 'detail_program_magang.dart';
 import 'dart:math';
 
 class ProgramMagang extends ConsumerStatefulWidget {
-  const ProgramMagang({super.key});
+  final String? initialCategory;
+  const ProgramMagang({super.key, this.initialCategory});
 
   @override
   ConsumerState<ProgramMagang> createState() => _ProgramMagangState();
@@ -16,6 +18,11 @@ class ProgramMagang extends ConsumerStatefulWidget {
 class _ProgramMagangState extends ConsumerState<ProgramMagang> {
   int _currentPage = 1;
   final int _itemsPerPage = 10;
+
+  // Search State
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+  Timer? _debounce; // Timer untuk delay pencarian
 
   final List<String> _categories = [
     "Semua",
@@ -27,26 +34,60 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Kalau ada kategori dari luar (misal dari Beranda), set controller
+    // Note: Provider kategori udah dihandle di build via ref.watch
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel(); // Matikan timer kalau halaman ditutup
+    super.dispose();
+  }
+
+  // LOGIKA PENCARIAN (DELAY 1 DETIK)
+  void _onSearchChanged(String query) {
+    // Kalau user ngetik lagi sebelum 1 detik, batalin timer sebelumnya
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    // Mulai timer baru
+    _debounce = Timer(const Duration(milliseconds: 1000), () {
+      setState(() {
+        _searchQuery = query;
+        _currentPage = 1; // Reset ke halaman 1 kalau hasil pencarian berubah
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 1. BACA KATEGORI DARI PROVIDER (Bukan state lokal lagi)
+    // 1. Ambil Kategori dari Global Provider
     final selectedCategory = ref.watch(selectedCategoryProvider);
 
-    // 2. MINTA DATA SESUAI KATEGORI
-    final programAsyncValue = ref.watch(programListProvider(selectedCategory));
+    // 2. Buat Filter Gabungan (Kategori + Search Query)
+    final filter = ProgramFilter(
+      category: selectedCategory,
+      query: _searchQuery,
+    );
+
+    // 3. Minta Data ke Provider dengan Filter
+    final programAsyncValue = ref.watch(programListProvider(filter));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Column(
         children: [
-          _buildCustomHeader(),
+          // Header sekarang punya akses ke fungsi search
+          _buildCustomHeader(onSearch: _onSearchChanged),
 
           Expanded(
             child: programAsyncValue.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text("Error: $err")),
               data: (allPrograms) {
-                if (allPrograms.isEmpty)
-                  return _buildEmptyState(ref); // Pass ref buat reset
+                if (allPrograms.isEmpty) return _buildEmptyState(ref);
 
                 int totalPages = (allPrograms.length / _itemsPerPage).ceil();
                 if (_currentPage > totalPages && totalPages > 0)
@@ -63,9 +104,25 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
                   padding: const EdgeInsets.only(top: 0, bottom: 100),
                   children: [
                     const SizedBox(height: 10),
-                    // Pass ref ke Category List
                     _buildCategoryList(ref, selectedCategory),
                     const SizedBox(height: 10),
+
+                    // Tampilkan Hasil Pencarian (Feedback Text)
+                    if (_searchQuery.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          "Menampilkan hasil untuk \"$_searchQuery\"",
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
 
                     ...currentData.map((program) {
                       final mitra = program['mitra'] ?? {};
@@ -133,9 +190,17 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
               ),
               const SizedBox(height: 10),
               Text(
-                "Belum ada lowongan di kategori ini",
+                "Tidak ditemukan lowongan",
                 style: GoogleFonts.plusJakartaSans(color: Colors.grey),
               ),
+              if (_searchQuery.isNotEmpty)
+                Text(
+                  "untuk \"$_searchQuery\"",
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
             ],
           ),
         ),
@@ -143,7 +208,6 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
     );
   }
 
-  // --- WIDGET HELPER UPDATE (Pakai Provider) ---
   Widget _buildCategoryList(WidgetRef ref, String currentCategory) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -153,7 +217,6 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
           bool isSelected = currentCategory == category;
           return GestureDetector(
             onTap: () {
-              // UPDATE PROVIDER GLOBAL
               ref.read(selectedCategoryProvider.notifier).state = category;
               setState(() => _currentPage = 1);
             },
@@ -192,8 +255,8 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
     );
   }
 
-  // ... (Header dan Pagination sama, cuma perlu penyesuaian kalau ada referensi lokal)
-  Widget _buildCustomHeader() {
+  // Custom Header yang menerima fungsi onChanged
+  Widget _buildCustomHeader({required Function(String) onSearch}) {
     return Container(
       padding: const EdgeInsets.only(top: 50, left: 24, right: 24, bottom: 24),
       decoration: const BoxDecoration(
@@ -206,21 +269,42 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Temukan Peluang',
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
-            ),
-          ),
-          Text(
-            'Program Magang',
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-            ),
+          Row(
+            children: [
+              if (Navigator.canPop(context))
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Temukan Peluang',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    'Program Magang',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           Container(
@@ -236,6 +320,8 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
               ],
             ),
             child: TextField(
+              controller: _searchController, // Connect controller
+              onChanged: onSearch, // Connect fungsi debounce
               decoration: InputDecoration(
                 hintText: 'Cari posisi atau perusahaan...',
                 hintStyle: GoogleFonts.plusJakartaSans(
@@ -326,7 +412,7 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
   }
 }
 
-// ... ProgramCard tetap sama ...
+// ... ProgramCard sama persis, gak berubah ...
 class ProgramCard extends StatelessWidget {
   final String companyName;
   final String programTitle;

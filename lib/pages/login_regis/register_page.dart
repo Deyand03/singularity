@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:singularity/pages/login_regis/register_mitra.dart';
 import 'package:singularity/utility/supabase.client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -173,8 +174,9 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _handleRegisterMitra() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur Register Mitra akan segera hadir!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const RegisterMitraPage()),
     );
   }
 

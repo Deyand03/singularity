@@ -5,7 +5,6 @@ import 'package:singularity/pages/detail_program_magang.dart';
 import 'package:singularity/providers/common.provider.dart'; // Import Provider yang tadi dibuat
 import 'package:singularity/providers/nav_provider.dart';
 import '../components/home_banner.dart';
-import 'program_magang.dart';
 
 // UBAH JADI CONSUMER WIDGET
 class BerandaPage extends ConsumerWidget {
