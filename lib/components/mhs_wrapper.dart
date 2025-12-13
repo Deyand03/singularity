@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Import Riverpod
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:singularity/pages/beranda_page.dart';
 import 'package:singularity/pages/mahasiswa/profile_mahasiswa.dart';
 import "package:singularity/components/custom_nav_mhs.dart";
@@ -21,6 +21,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     const ProgramMagang(), // Index 1
     const ProfileMahasiswa(), // Index 2
   ];
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(navIndexProvider.notifier).state = 0);
+  }
 
   @override
   Widget build(BuildContext context) {

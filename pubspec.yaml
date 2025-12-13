@@ -23,6 +23,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
+
+flutter_native_splash:
+  color: "#19A7CE" # Warna background 
+  image: "assets/images/splash_screen.png"
+  android_12: 
+    image: "assets/images/splash_screen.png"
+    color: "#19A7CE"
+  fullscreen: true
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21 # Opsional
 
 flutter:
   uses-material-design: true

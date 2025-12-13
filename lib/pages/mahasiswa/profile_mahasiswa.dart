@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,14 +6,27 @@ import 'package:singularity/pages/mahasiswa/settings_mahasiswa.dart';
 import 'package:singularity/providers/mahasiswa_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class ProfileMahasiswa extends ConsumerWidget {
+class ProfileMahasiswa extends ConsumerStatefulWidget {
   const ProfileMahasiswa({super.key});
+  @override
+  ConsumerState<ProfileMahasiswa> createState() => _ProfileMahasiswaState();
+}
 
+class _ProfileMahasiswaState extends ConsumerState<ProfileMahasiswa> {
   final Color primaryColor = const Color(0xFF19A7CE);
   final Color bgColor = const Color(0xFFF8F9FA);
+  @override
+  void initState() {
+    super.initState();
+    // Paksa refresh data profil & history setiap kali halaman ini dimuat pertama kali
+    Future.microtask(() {
+      ref.invalidate(userProfileDetailProvider);
+      ref.invalidate(applicationHistoryProvider);
+    });
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileDetailProvider);
     final historyAsync = ref.watch(applicationHistoryProvider);
 

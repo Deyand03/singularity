@@ -4,13 +4,33 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:singularity/providers/mahasiswa_beranda_provider.dart';
 import '../components/home_banner.dart';
 import 'detail_program_magang.dart';
+import 'program_magang.dart'; // Import halaman list program
 import '../providers/nav_provider.dart';
 
-class BerandaPage extends ConsumerWidget {
+// UBAH JADI STATEFUL BIAR BISA INIT STATE
+class BerandaPage extends ConsumerStatefulWidget {
   const BerandaPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BerandaPage> createState() => _BerandaPageState();
+}
+
+class _BerandaPageState extends ConsumerState<BerandaPage> {
+  @override
+  void initState() {
+    super.initState();
+    // FIX BUG DATA LAMA NYANGKUT:
+    // Setiap kali halaman ini dibuka (Login baru), kita paksa refresh datanya.
+    Future.microtask(() {
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(dashboardStatsProvider);
+      ref.invalidate(recentJobsProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch data terbaru
     final userProfile = ref.watch(userProfileProvider);
     final dashboardStats = ref.watch(dashboardStatsProvider);
     final recentJobs = ref.watch(recentJobsProvider);
@@ -19,16 +39,16 @@ class BerandaPage extends ConsumerWidget {
       backgroundColor: const Color(0xFFF8F9FA),
       body: Stack(
         children: [
-          // --- BACKGROUND & HEADER USER ---
-          Positioned(
+          // 1. BANNER BACKGROUND
+          const Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: 280,
-            child: Stack(children: [const HomeBannerCarousel()]),
+            child: HomeBannerCarousel(),
           ),
 
-          // --- KONTEN UTAMA ---
+          // 3. KONTEN UTAMA (Layer Putih Melengkung)
           SingleChildScrollView(
             padding: const EdgeInsets.only(top: 240, bottom: 120),
             child: Column(
@@ -51,7 +71,7 @@ class BerandaPage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 1. DASHBOARD STATISTIK (UPDATED: SCROLLABLE)
+                      // DASHBOARD STATISTIK
                       Transform.translate(
                         offset: const Offset(0, -40),
                         child: dashboardStats.when(
@@ -61,7 +81,7 @@ class BerandaPage extends ConsumerWidget {
                         ),
                       ),
 
-                      // 2. KATEGORI PILIHAN
+                      // KATEGORI PILIHAN
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
                         child: Text(
@@ -74,13 +94,13 @@ class BerandaPage extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       _buildCategoryList(context, ref),
 
                       const SizedBox(height: 30),
 
-                      // 3. LOWONGAN TERBARU
+                      // LOWONGAN TERBARU
                       _buildSectionHeader("Lowongan Terbaru", () {
+                        // Reset filter dan pindah tab
                         ref.read(selectedCategoryProvider.notifier).state =
                             "Semua";
                         ref.read(navIndexProvider.notifier).state = 1;
@@ -88,7 +108,7 @@ class BerandaPage extends ConsumerWidget {
 
                       const SizedBox(height: 10),
 
-                      // 4. LIST LOWONGAN
+                      // LIST LOWONGAN
                       recentJobs.when(
                         data: (jobs) {
                           if (jobs.isEmpty) {
@@ -125,7 +145,7 @@ class BerandaPage extends ConsumerWidget {
     );
   }
 
-  // --- WIDGET DASHBOARD UPDATED ---
+  // --- WIDGET DASHBOARD SCROLLABLE ---
   Widget _buildMiniDashboard(Map<String, int> stats) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -141,7 +161,6 @@ class BerandaPage extends ConsumerWidget {
           ),
         ],
       ),
-      // Gunakan SingleChildScrollView horizontal biar muat banyak
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -162,7 +181,7 @@ class BerandaPage extends ConsumerWidget {
             _buildDivider(),
             _buildDashboardItem(
               stats['Berlangsung'].toString(),
-              "Berlangsung",
+              "Magang",
               Icons.play_arrow_rounded,
               Colors.blue,
             ),
@@ -186,15 +205,6 @@ class BerandaPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildDivider() {
-    return Container(
-      width: 1,
-      height: 40,
-      color: Colors.grey.shade200,
-      margin: const EdgeInsets.symmetric(horizontal: 15),
-    );
-  }
-
   Widget _buildLoadingDashboard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -204,6 +214,15 @@ class BerandaPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 40,
+      color: Colors.grey.shade200,
+      margin: const EdgeInsets.symmetric(horizontal: 15),
     );
   }
 
@@ -244,7 +263,7 @@ class BerandaPage extends ConsumerWidget {
     );
   }
 
-  // --- WIDGET KATEGORI & LAINNYA (TETAP SAMA) ---
+  // --- KATEGORI ---
   Widget _buildCategoryList(BuildContext context, WidgetRef ref) {
     final categories = [
       {"label": "Web Developer", "icon": Icons.code, "color": Colors.blue},
@@ -321,6 +340,7 @@ class BerandaPage extends ConsumerWidget {
     );
   }
 
+  // --- JOB CARD ---
   Widget _buildJobCard(BuildContext context, Map<String, dynamic> job) {
     final mitra = job['mitra'] as Map<String, dynamic>? ?? {};
     final perusahaan = mitra['nama_perusahaan'] ?? 'Perusahaan';
