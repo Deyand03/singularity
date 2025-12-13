@@ -14,7 +14,6 @@ class CustomNavMhs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Height dinaikin jadi 90 biar gak error overpixel pas animasi dan lebih lega
       height: 90,
       decoration: BoxDecoration(
         color: Colors.white,

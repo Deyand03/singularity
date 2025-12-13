@@ -76,7 +76,7 @@ class _AuthGateState extends State<AuthGate> {
     _checkUser();
     
     // Dengerin kalau user logout/login
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    supabase.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       if (event == AuthChangeEvent.signedIn) {
         _checkUser(); // Cek ulang kalau baru login
@@ -93,7 +93,7 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _checkUser() async {
     try {
-      final session = Supabase.instance.client.auth.currentSession;
+      final session = supabase.auth.currentSession;
       if (session == null) {
         if (mounted) setState(() => _isLoading = false);
         return;
@@ -102,7 +102,7 @@ class _AuthGateState extends State<AuthGate> {
       final user = session.user;
       
       // 1. Cek Tabel 'users' untuk ambil role
-      final userData = await Supabase.instance.client
+      final userData = await supabase
           .from('users')
           .select('role')
           .eq('id', user.id)
@@ -129,7 +129,7 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
-    final session = Supabase.instance.client.auth.currentSession;
+    final session = supabase.auth.currentSession;
 
     // 1. Kalau Gak Login -> Ke Login Page
     if (session == null) {

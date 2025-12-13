@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:singularity/pages/mitra/dashboard_mitra.dart';
 import 'package:singularity/pages/mitra/profile_mitra.dart';
 import 'package:singularity/pages/mitra/tambah_program.dart';
+import '../../components/custom_nav_mitra.dart'; // Import Component Baru
 
 class MainScaffoldMitra extends StatefulWidget {
   const MainScaffoldMitra({super.key});
@@ -15,11 +15,20 @@ class MainScaffoldMitra extends StatefulWidget {
 class _MainScaffoldMitraState extends State<MainScaffoldMitra> {
   int _currentIndex = 0;
 
+  // DAFTAR HALAMAN MITRA (5 MENU)
   final List<Widget> _pages = [
-    const DashboardMitra(),    // Halaman 0
-    const TambahProgram(),     // Halaman 1
-    const ProfileMitra(),      // Halaman 2
+    const DashboardMitra(), // 0. Beranda/Dashboard
+    const PlaceholderListLoker(), // 1. Kelola Loker (Placeholder)
+    const TambahProgram(), // 2. TAMBAH (Tengah)
+    const PlaceholderListPelamar(), // 3. Pelamar (Placeholder)
+    const ProfileMitra(), // 4. Profil
   ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,33 +39,59 @@ class _MainScaffoldMitraState extends State<MainScaffoldMitra> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
+        // Body sesuai index yang dipilih
         body: _pages[_currentIndex],
-        
-        // Navbar Simpel Khusus Mitra (Bisa diganti CustomNav nanti)
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _currentIndex,
-          onDestinationSelected: (index) => setState(() => _currentIndex = index),
-          backgroundColor: Colors.white,
-          indicatorColor: const Color(0xFF19A7CE).withOpacity(0.2),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard, color: Color(0xFF19A7CE)),
-              label: 'Dashboard',
+
+        // --- TOMBOL TENGAH (FAB) ---
+        floatingActionButton: SizedBox(
+          width: 65,
+          height: 65,
+          child: FloatingActionButton(
+            onPressed: () => _onItemTapped(2), // Pindah ke index 2 (Tambah)
+            backgroundColor: const Color(0xFF19A7CE), // Warna Tema Biru
+            shape: const CircleBorder(), // Bulat sempurna
+            elevation: 8, // Sedikit lebih tinggi biar pop-out
+            child: Icon(
+              Icons.add_rounded,
+              size: 32,
+              // Icon putih kalau aktif, agak transparan kalau gak aktif
+              color: _currentIndex == 2
+                  ? Colors.white
+                  : Colors.white.withOpacity(0.9),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.add_circle_outline),
-              selectedIcon: Icon(Icons.add_circle, color: Color(0xFF19A7CE)),
-              label: 'Buat Loker',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.business_outlined),
-              selectedIcon: Icon(Icons.business, color: Color(0xFF19A7CE)),
-              label: 'Profil PT',
-            ),
-          ],
+          ),
+        ),
+        // Posisi FAB 'Nancep' di tengah Navbar
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
+        // --- NAVBAR CUSTOM (IMPORT) ---
+        bottomNavigationBar: CustomNavMitra(
+          currentIndex: _currentIndex,
+          onTap: _onItemTapped,
         ),
       ),
+    );
+  }
+}
+
+// --- PLACEHOLDER PAGES ---
+
+class PlaceholderListLoker extends StatelessWidget {
+  const PlaceholderListLoker({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: Text("Halaman Kelola Lowongan (Segera Hadir)")),
+    );
+  }
+}
+
+class PlaceholderListPelamar extends StatelessWidget {
+  const PlaceholderListPelamar({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: Text("Halaman Review Pelamar (Segera Hadir)")),
     );
   }
 }

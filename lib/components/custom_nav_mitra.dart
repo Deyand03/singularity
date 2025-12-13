@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class CustomNavMitra extends StatelessWidget {
   final int currentIndex;
@@ -10,192 +11,115 @@ class CustomNavMitra extends StatelessWidget {
     required this.onTap,
   });
 
-  final Color primaryBlue = const Color(0xFF2196F3);
-  final double navHeight = 80; // Tinggi area putih navbar
-  final double floatSpace = 30;
-
   @override
   Widget build(BuildContext context) {
-    final double bottomPadding = MediaQuery.of(context).padding.bottom;
-    final double totalHeight = navHeight + floatSpace + bottomPadding;
-    final Size size = MediaQuery.of(context).size;
-
-    return SizedBox(
-      height: totalHeight,
-      child: Stack(
+    return BottomAppBar(
+      shape: const CircularNotchedRectangle(), // Lekukan untuk FAB
+      notchMargin: 10.0, // Jarak lekukan lebih lega
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 15,
+      shadowColor: Colors.black.withOpacity(0.15),
+      height: 80,
+      padding: EdgeInsets.zero,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          // 1. Background Putih dengan Lekukan
-          // Kita geser gambarnya ke bawah sejauh 'floatSpace'
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: CustomPaint(
-              size: Size(size.width, totalHeight),
-              painter: NavbarPainter(currentIndex, 3, floatSpace),
-            ),
+          // Grup Kiri
+          _buildNavItem(
+            0,
+            Icons.dashboard_rounded,
+            Icons.dashboard_outlined,
+            "Beranda",
+          ),
+          _buildNavItem(
+            1,
+            Icons.list_alt_rounded,
+            Icons.list_alt_outlined,
+            "Lokerku",
           ),
 
-          // 2. Floating Action Button (Lingkaran Biru)
-          // Sekarang top-nya bukan minus, tapi 0 (di area transparan tadi)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOutQuad,
-            top: 0, // Posisi paling atas dari container (area transparan)
-            left: (size.width / 3) * currentIndex + (size.width / 3) / 2 - 28,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: primaryBlue,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryBlue.withOpacity(0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Icon(_getIcon(currentIndex), color: Colors.white),
-            ),
-          ),
+          // Spasi untuk FAB di tengah
+          const SizedBox(width: 48),
 
-          // 3. Icon & Label (Posisi tetap di area putih)
-          Positioned(
-            top: floatSpace, // Turun ke bawah, pas di area putih
-            left: 0,
-            right: 0,
-            height: navHeight,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildNavItem(context, 0, Icons.dashboard_rounded, "Dashboard"),
-                _buildNavItem(context, 1, Icons.search_rounded, "Pencarian"),
-                _buildNavItem(context, 2, Icons.home_rounded, "Profil"),
-              ],
-            ),
+          // Grup Kanan
+          _buildNavItem(
+            3,
+            Icons.people_alt_rounded,
+            Icons.people_alt_outlined,
+            "Pelamar",
+          ),
+          _buildNavItem(
+            4,
+            Icons.business_rounded,
+            Icons.business_outlined,
+            "Profil",
           ),
         ],
       ),
     );
   }
 
-  IconData _getIcon(int index) {
-    switch (index) {
-      case 0:
-        return Icons.home_rounded;
-      case 1:
-        return Icons.search_rounded;
-      case 2:
-        return Icons.person_rounded;
-      default:
-        return Icons.dashboard_rounded;
-    }
-  }
-
   Widget _buildNavItem(
-    BuildContext context,
     int index,
-    IconData icon,
+    IconData activeIcon,
+    IconData inactiveIcon,
     String label,
   ) {
-    bool isSelected = currentIndex == index;
+    final bool isSelected = currentIndex == index;
+    const primaryColor = Color(0xFF19A7CE);
 
-    return GestureDetector(
-      onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width / 3,
+    return Expanded(
+      child: InkWell(
+        onTap: () => onTap(index),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(height: isSelected ? 35 : 0),
-            isSelected
-                ? const SizedBox(height: 24)
-                : Icon(icon, color: Colors.grey.shade400),
-            AnimatedOpacity(
+            // 1. ANIMATED BADGE ICON
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              // FIX: Ganti 'easeOutBack' ke 'fastOutSlowIn'
+              // Kurva ini AMAN karena tidak pernah overshoot ke nilai negatif (minus)
+              // tapi tetap memberikan efek akselerasi yang smooth dan 'mahal'.
+              curve: Curves.fastOutSlowIn,
+              padding: EdgeInsets.symmetric(
+                horizontal: isSelected ? 20 : 0, // Melebar saat aktif
+                vertical: isSelected ? 5 : 0, // Ada padding vertikal saat aktif
+              ),
+              decoration: BoxDecoration(
+                // Background Transparan Biru (Badge Style)
+                color: isSelected
+                    ? primaryColor.withOpacity(0.15)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20), // Bentuk Pill/Kapsul
+              ),
+              child: Icon(
+                isSelected ? activeIcon : inactiveIcon,
+                // Icon jadi Biru saat aktif, Abu saat mati
+                color: isSelected ? primaryColor : Colors.grey.shade400,
+                size: 26,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            // 2. LABEL
+            AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 300),
-              opacity: isSelected ? 1.0 : 0.0,
-              child: isSelected
-                  ? Text(
-                      label,
-                      style: TextStyle(
-                        color: primaryBlue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    )
-                  : const SizedBox(),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10,
+                // Teks jadi Bold & Biru saat aktif
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? primaryColor : Colors.grey.shade400,
+              ),
+              child: Text(label),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-// --- LOGIKA MENGGAMBAR (Update Offset) ---
-class NavbarPainter extends CustomPainter {
-  final int selectedIndex;
-  final int itemsCount;
-  final double topOffset; // Parameter baru buat geser gambar ke bawah
-
-  NavbarPainter(this.selectedIndex, this.itemsCount, this.topOffset);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    Paint paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    Path path = Path();
-
-    // Mulai menggambar dari topOffset (misal pixel ke-30 dari atas)
-    double startY = topOffset;
-
-    path.moveTo(0, startY);
-
-    double itemWidth = size.width / itemsCount;
-    double centerX = (itemWidth * selectedIndex) + (itemWidth / 2);
-
-    // Garis lurus kiri
-    path.lineTo(centerX - 45, startY);
-
-    // Curve Lekukan
-    // Semua koordinat Y ditambah startY biar turun
-    path.cubicTo(
-      centerX - 25,
-      startY,
-      centerX - 25,
-      startY + 45, // Kedalaman 45 pixel dari garis putih
-      centerX,
-      startY + 45,
-    );
-    path.cubicTo(
-      centerX + 25,
-      startY + 45,
-      centerX + 25,
-      startY,
-      centerX + 45,
-      startY,
-    );
-
-    // Garis lurus kanan
-    path.lineTo(size.width, startY);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    // Shadow
-    canvas.drawShadow(path, Colors.black.withOpacity(0.1), 4.0, true);
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant NavbarPainter oldDelegate) {
-    return oldDelegate.selectedIndex != selectedIndex;
   }
 }
