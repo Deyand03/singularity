@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:singularity/pages/mitra/tambah_program.dart';
 import 'package:singularity/providers/mitra_lowongan_provider.dart';
 import 'package:singularity/utility/supabase.client.dart';
 
@@ -275,17 +276,23 @@ class _LowonganMitraState extends ConsumerState<LowonganMitra> {
                   onSelected: (value) {
                     if (value == 'hapus') {
                       _showDeleteConfirm(job['id']);
+                    } else if (value == 'edit') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TambahProgram(jobData: job),
+                        ),
+                      );
                     }
-                    // TODO: Tambah fitur edit
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem(
-                      value: 'edit',
-                      child: Text("Edit Data"),
+                      value: 'edit', 
+                      child: Text("Edit Data")
                     ),
                     const PopupMenuItem(
-                      value: 'hapus',
-                      child: Text("Hapus", style: TextStyle(color: Colors.red)),
+                      value: 'hapus', 
+                      child: Text("Hapus", style: TextStyle(color: Colors.red))
                     ),
                   ],
                   icon: const Icon(Icons.more_vert, color: Colors.grey),

@@ -107,10 +107,6 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
                       const Center(child: CircularProgressIndicator()),
                   error: (err, _) => Center(child: Text("Error: $err")),
                   data: (messages) {
-                    // FIX: Tidak perlu .reversed lagi karena Provider sudah Descending (Baru -> Lama)
-                    // messages[0] adalah pesan paling baru.
-                    // ListView reverse: true akan merender index 0 di paling bawah.
-                    // COCOK!
 
                     if (messages.isEmpty) {
                       return Center(

@@ -22,7 +22,7 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
   // Search State
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
-  Timer? _debounce; // Timer untuk delay pencarian
+  Timer? _debounce; 
 
   final List<String> _categories = [
     "Semua",
@@ -36,8 +36,6 @@ class _ProgramMagangState extends ConsumerState<ProgramMagang> {
   @override
   void initState() {
     super.initState();
-    // Kalau ada kategori dari luar (misal dari Beranda), set controller
-    // Note: Provider kategori udah dihandle di build via ref.watch
   }
 
   @override

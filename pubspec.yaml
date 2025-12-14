@@ -1,5 +1,5 @@
 name: singularity
-description: "A new Flutter project."
+description: "Aplikasi magang dan kerja praktik berbasis mobile untuk mahasiswa dan mitra industri."
 publish_to: 'none'
 version: 0.1.0
 
@@ -27,7 +27,7 @@ dev_dependencies:
   flutter_native_splash: ^2.3.10
 
 flutter_native_splash:
-  color: "#19A7CE" # Warna background 
+  color: "#19A7CE" 
   image: "assets/images/splash_screen.png"
   android_12: 
     image: "assets/images/splash_screen.png"
@@ -38,7 +38,7 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/images/app_icon.png"
-  min_sdk_android: 21 # Opsional
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
