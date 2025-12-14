@@ -36,7 +36,7 @@ class CustomNavMitra extends StatelessWidget {
             1,
             Icons.list_alt_rounded,
             Icons.list_alt_outlined,
-            "Lokerku",
+            "Lowongan",
           ),
 
           // Spasi untuk FAB di tengah

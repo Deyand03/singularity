@@ -3,17 +3,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:singularity/pages/chat/chat_room.dart';
 import 'package:singularity/providers/mitra_dashboard_provider.dart';
 import 'package:singularity/utility/supabase.client.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/nav_provider.dart';
+import '../../providers/chat_provider.dart';
 
 class DashboardMitra extends ConsumerWidget {
   const DashboardMitra({super.key});
 
   final Color primaryColor = const Color(0xFF19A7CE);
 
-  // --- LOGIC UPDATE STATUS ---
   Future<void> _updateStatus(
     BuildContext context,
     WidgetRef ref,
@@ -25,7 +26,6 @@ class DashboardMitra extends ConsumerWidget {
           .from('pendaftaran')
           .update({'status': newStatus})
           .eq('id', pendaftaranId);
-
       ref.invalidate(mitraDashboardProvider);
 
       if (context.mounted) {
@@ -92,6 +92,39 @@ class DashboardMitra extends ConsumerWidget {
     }
   }
 
+    Future<void> _openChat(
+      BuildContext context,
+      int mahasiswaId,
+      int mitraId,
+      String namaMhs,
+      String? fotoMhs
+    ) async {
+      if (mahasiswaId == 0 || mitraId == 0) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Data ID tidak valid")));
+        return;
+      }
+      try {
+        final roomId = await getOrCreateChatRoom(mahasiswaId, mitraId);
+        if (context.mounted) {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ChatRoomPage(roomId: roomId, namaLawan: namaMhs, fotoLawan: fotoMhs),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Gagal buka chat: $e")));
+      }
+    }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardAsync = ref.watch(mitraDashboardProvider);
@@ -103,6 +136,7 @@ class DashboardMitra extends ConsumerWidget {
         error: (err, stack) => Center(child: Text("Error: $err")),
         data: (data) {
           final profile = data.mitraProfile;
+          final int currentMitraId = (profile['id'] as int?) ?? 0;
 
           return RefreshIndicator(
             onRefresh: () async => ref.refresh(mitraDashboardProvider),
@@ -118,12 +152,11 @@ class DashboardMitra extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 2. STATISTIK CARDS (Update: Tambah 1 Card)
                         Transform.translate(
                           offset: const Offset(0, -40),
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
-                            clipBehavior: Clip.none, // Biar shadow gak kepotong
+                            clipBehavior: Clip.none,
                             child: Row(
                               children: [
                                 _buildStatCard(
@@ -141,15 +174,14 @@ class DashboardMitra extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 12),
                                 _buildStatCard(
-                                  "Butuh Review",
+                                  "Review",
                                   data.needReview.toString(),
                                   Colors.red,
                                   Icons.rate_review_outlined,
                                 ),
                                 const SizedBox(width: 12),
-                                // NEW STAT: Magang Aktif
                                 _buildStatCard(
-                                  "Aktif Magang",
+                                  "Magang",
                                   data.activeInterns.toString(),
                                   Colors.teal,
                                   Icons.badge_outlined,
@@ -159,7 +191,6 @@ class DashboardMitra extends ConsumerWidget {
                           ),
                         ),
 
-                        // 3. PELAMAR TERBARU
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -172,9 +203,8 @@ class DashboardMitra extends ConsumerWidget {
                               ),
                             ),
                             TextButton(
-                              onPressed: () {
-                                ref.read(navIndexProvider.notifier).state = 3;
-                              },
+                              onPressed: () =>
+                                  ref.read(navIndexProvider.notifier).state = 3,
                               child: Text(
                                 "Lihat Semua",
                                 style: GoogleFonts.plusJakartaSans(
@@ -192,7 +222,12 @@ class DashboardMitra extends ConsumerWidget {
                           _buildEmptyState()
                         else
                           ...data.recentApplicants.map(
-                            (app) => _buildApplicantTile(context, ref, app),
+                            (app) => _buildApplicantTile(
+                              context,
+                              ref,
+                              app,
+                              currentMitraId,
+                            ),
                           ),
 
                         const SizedBox(height: 100),
@@ -209,7 +244,7 @@ class DashboardMitra extends ConsumerWidget {
   }
 
   // --- WIDGETS ---
-  // (Header sama persis, saya ringkas biar hemat token, timpa aja pake yang sebelumnya kalau mau, atau pakai ini yang clean)
+  // (Header, StatCard, ApplicantTile SAMA PERSIS dengan sebelumnya, saya ringkas)
   Widget _buildHeader(BuildContext context, Map<String, dynamic> profile) {
     return Container(
       width: double.infinity,
@@ -268,9 +303,7 @@ class DashboardMitra extends ConsumerWidget {
             ),
           ),
           IconButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Belum ada notifikasi")),
-            ),
+            onPressed: () {},
             icon: const Icon(
               Icons.notifications_none_rounded,
               color: Colors.white,
@@ -288,9 +321,8 @@ class DashboardMitra extends ConsumerWidget {
     Color color,
     IconData icon,
   ) {
-    // Ubah jadi Container fix width biar rapi di scroll horizontal
     return Container(
-      width: 110, // Lebar fix
+      width: 110,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -342,17 +374,16 @@ class DashboardMitra extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Map<String, dynamic> app,
+    int mitraId,
   ) {
     final mhs = app['mahasiswa'] ?? {};
     final program = app['program_magang'] ?? {};
     final status = (app['status'] ?? 'pending').toString().toLowerCase();
-
     Color statusColor = Colors.orange;
     if (status == 'diterima') statusColor = Colors.green;
     if (status == 'ditolak') statusColor = Colors.red;
     if (status == 'berlangsung') statusColor = Colors.blue;
     if (status == 'selesai') statusColor = Colors.purple;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -413,7 +444,7 @@ class DashboardMitra extends ConsumerWidget {
           ],
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: () => _showDetailSheet(context, ref, app),
+        onTap: () => _showDetailSheet(context, ref, app, mitraId),
       ),
     );
   }
@@ -440,16 +471,27 @@ class DashboardMitra extends ConsumerWidget {
     );
   }
 
-  // --- DETAIL SHEET (UPDATED FLOW) ---
+  // --- DETAIL SHEET (UPDATED WITH DATA LENGKAP) ---
   void _showDetailSheet(
     BuildContext context,
     WidgetRef ref,
     Map<String, dynamic> data,
+    int mitraId,
   ) {
     final mhs = data['mahasiswa'] ?? {};
     final status = (data['status'] ?? 'pending').toString().toLowerCase();
     final cvUrl = data['file_cv'];
     final transkripUrl = data['transkrip_nilai'];
+    final int mahasiswaId =
+        (data['mahasiswa_id'] as int?) ?? (mhs['id'] as int?) ?? 0;
+    final String namaMhs = mhs['nama'] ?? 'Mahasiswa';
+    final String? fotoMhs = mhs['foto_profil'];
+
+    // DATA LENGKAP
+    final nim = mhs['nim'] ?? '-';
+    final universitas = mhs['universitas'] ?? '-';
+    final gender = mhs['gender'] ?? '-';
+    final alamat = mhs['provinsi'] ?? 'Alamat belum diisi';
 
     showModalBottomSheet(
       context: context,
@@ -483,7 +525,7 @@ class DashboardMitra extends ConsumerWidget {
                   radius: 35,
                   backgroundImage: NetworkImage(
                     mhs['foto_profil'] ??
-                        'https://ui-avatars.com/api/?name=${mhs['nama']}',
+                        'https://ui-avatars.com/api/?name=$namaMhs',
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -492,7 +534,7 @@ class DashboardMitra extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        mhs['nama'] ?? 'Unknown',
+                        namaMhs,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -505,9 +547,51 @@ class DashboardMitra extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (status == 'diterima' || status == 'berlangsung')
+                  IconButton(
+                    onPressed: () =>
+                        _openChat(context, mahasiswaId, mitraId, namaMhs, fotoMhs),
+                    icon: const CircleAvatar(
+                      backgroundColor: Colors.green,
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // --- DATA KANDIDAT (NEW SECTION) ---
+            Text(
+              "Detail Kandidat",
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow("NIM", nim),
+                  _buildDetailRow("Universitas", universitas),
+                  _buildDetailRow("Jenis Kelamin", gender),
+                  const Divider(height: 16),
+                  _buildDetailRow("Alamat", alamat),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
 
             Text(
               "Dokumen Pendukung",
@@ -516,7 +600,7 @@ class DashboardMitra extends ConsumerWidget {
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _buildFileTile(
               context,
               "Lihat CV Pelamar",
@@ -532,8 +616,6 @@ class DashboardMitra extends ConsumerWidget {
             ),
 
             const SizedBox(height: 30),
-
-            // --- ACTION BUTTONS (FLOW UPDATE) ---
             Text(
               "Keputusan / Status",
               style: GoogleFonts.plusJakartaSans(
@@ -543,7 +625,7 @@ class DashboardMitra extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // CASE 1: PENDING (Terima / Tolak)
+            // ACTION BUTTONS
             if (status == 'pending') ...[
               Row(
                 children: [
@@ -590,9 +672,7 @@ class DashboardMitra extends ConsumerWidget {
                   ),
                 ],
               ),
-            ]
-            // CASE 2: DITERIMA -> MULAI MAGANG
-            else if (status == 'diterima') ...[
+            ] else if (status == 'diterima') ...[
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -610,7 +690,7 @@ class DashboardMitra extends ConsumerWidget {
                     color: Colors.white,
                   ),
                   label: Text(
-                    "Mulai Magang (Set Aktif)",
+                    "Mulai Magang",
                     style: GoogleFonts.plusJakartaSans(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -618,19 +698,7 @@ class DashboardMitra extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  "Mahasiswa ini sudah diterima, mulai magang saat onboarding.",
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ]
-            // CASE 3: BERLANGSUNG -> SELESAI
-            else if (status == 'berlangsung') ...[
+            ] else if (status == 'berlangsung') ...[
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -656,19 +724,7 @@ class DashboardMitra extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  "Tandai selesai jika periode magang sudah berakhir.",
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ]
-            // CASE 4: SELESAI / DITOLAK (Info Only)
-            else ...[
+            ] else ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -682,9 +738,7 @@ class DashboardMitra extends ConsumerWidget {
                   ),
                 ),
                 child: Text(
-                  status == 'selesai'
-                      ? "PROGRAM MAGANG SELESAI"
-                      : "LAMARAN DITOLAK",
+                  status == 'selesai' ? "PROGRAM SELESAI" : "DITOLAK",
                   textAlign: TextAlign.center,
                   style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.bold,
@@ -694,7 +748,6 @@ class DashboardMitra extends ConsumerWidget {
               ),
             ],
 
-            // RESET BUTTON (Kecil di bawah, buat emergency salah klik)
             if (status != 'pending') ...[
               const SizedBox(height: 8),
               Center(
@@ -702,7 +755,7 @@ class DashboardMitra extends ConsumerWidget {
                   onPressed: () =>
                       _updateStatus(context, ref, data['id'], 'pending'),
                   child: Text(
-                    "Reset Status ke Pending",
+                    "Reset Status",
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.grey,
                       fontSize: 12,
@@ -711,10 +764,41 @@ class DashboardMitra extends ConsumerWidget {
                 ),
               ),
             ],
-
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.grey,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const Text(": ", style: TextStyle(color: Colors.grey)),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

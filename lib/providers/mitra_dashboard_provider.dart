@@ -6,7 +6,7 @@ class MitraDashboardData {
   final int activeLoker;
   final int totalPelamar;
   final int needReview;
-  final int activeInterns; // STAT BARU: Yang lagi magang
+  final int activeInterns;
   final List<Map<String, dynamic>> recentApplicants;
 
   MitraDashboardData({
@@ -53,30 +53,13 @@ final mitraDashboardProvider = FutureProvider.autoDispose<MitraDashboardData>((r
   List<Map<String, dynamic>> recentApps = [];
 
   if (programIds.isNotEmpty) {
-    // Hitung Total Pelamar
-    totalPelamar = await supabase
-        .from('pendaftaran')
-        .count()
-        .inFilter('program_magang_id', programIds);
+    totalPelamar = await supabase.from('pendaftaran').count().inFilter('program_magang_id', programIds);
+    needReview = await supabase.from('pendaftaran').count().inFilter('program_magang_id', programIds).eq('status', 'pending');
+    activeInterns = await supabase.from('pendaftaran').count().inFilter('program_magang_id', programIds).eq('status', 'berlangsung');
 
-    // Hitung Pending
-    needReview = await supabase
-        .from('pendaftaran')
-        .count()
-        .inFilter('program_magang_id', programIds)
-        .eq('status', 'pending');
-
-    // Hitung Berlangsung (Magang Aktif)
-    activeInterns = await supabase
-        .from('pendaftaran')
-        .count()
-        .inFilter('program_magang_id', programIds)
-        .eq('status', 'berlangsung');
-
-    // Ambil 5 Pelamar Terbaru
     final appsData = await supabase
         .from('pendaftaran')
-        .select('*, mahasiswa(nama, foto_profil, jurusan), program_magang(judul)')
+        .select('*, mahasiswa(*), program_magang(judul)')
         .inFilter('program_magang_id', programIds)
         .order('created_at', ascending: false)
         .limit(5);
@@ -89,7 +72,7 @@ final mitraDashboardProvider = FutureProvider.autoDispose<MitraDashboardData>((r
     activeLoker: lokerCount,
     totalPelamar: totalPelamar,
     needReview: needReview,
-    activeInterns: activeInterns, // Masukkan ke model
+    activeInterns: activeInterns,
     recentApplicants: recentApps,
   );
 });

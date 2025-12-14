@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:singularity/pages/chat/chat_room.dart';
 import 'package:singularity/utility/supabase.client.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/mitra_pelamar_provider.dart';
+import '../../providers/chat_provider.dart';
 
 class PelamarPage extends ConsumerStatefulWidget {
   const PelamarPage({super.key});
@@ -17,6 +19,29 @@ class PelamarPage extends ConsumerStatefulWidget {
 class _PelamarPageState extends ConsumerState<PelamarPage> {
   String _filterStatus = "Semua";
   final Color primaryColor = const Color(0xFF19A7CE);
+  int _currentMitraId = 0; // Simpan ID Mitra yang login
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMitraId(); // Ambil ID Mitra pas awal buka
+  }
+
+  Future<void> _fetchMitraId() async {
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      final data = await supabase
+          .from('mitra')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      if (data != null && mounted) {
+        setState(() {
+          _currentMitraId = data['id'];
+        });
+      }
+    }
+  }
 
   Future<void> _updateStatus(int pendaftaranId, String newStatus) async {
     try {
@@ -24,15 +49,13 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
           .from('pendaftaran')
           .update({'status': newStatus})
           .eq('id', pendaftaranId);
-
       ref.invalidate(mitraApplicantsProvider);
-
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Status diubah jadi: ${newStatus.toUpperCase().replaceAll('_', ' ')}",
+              "Status diubah menjadi: ${newStatus.toUpperCase().replaceAll('_', ' ')}",
             ),
             backgroundColor: Colors.green,
           ),
@@ -90,10 +113,44 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
     }
   }
 
+  // --- LOGIC BUKA CHAT ---
+  Future<void> _openChat(
+    int mahasiswaId,
+    String namaMhs,
+    String? fotoMhs,
+  ) async {
+    if (mahasiswaId == 0 || _currentMitraId == 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Data ID tidak valid")));
+      return;
+    }
+    try {
+      final roomId = await getOrCreateChatRoom(mahasiswaId, _currentMitraId);
+      if (mounted) {
+        Navigator.pop(context); // Tutup Sheet
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatRoomPage(
+              roomId: roomId,
+              namaLawan: namaMhs,
+              fotoLawan: fotoMhs,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Gagal buka chat: $e")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final applicantsAsync = ref.watch(mitraApplicantsProvider);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Column(
@@ -109,15 +166,12 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
                   return (item['status'] ?? '').toString().toLowerCase() ==
                       _filterStatus.toLowerCase();
                 }).toList();
-
                 if (filteredData.isEmpty) return _buildEmptyState();
-
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 10, bottom: 100),
                   itemCount: filteredData.length,
-                  itemBuilder: (context, index) {
-                    return _buildApplicantCard(filteredData[index]);
-                  },
+                  itemBuilder: (context, index) =>
+                      _buildApplicantCard(filteredData[index]),
                 );
               },
             ),
@@ -128,7 +182,6 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
   }
 
   // --- WIDGETS ---
-
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.only(top: 60, left: 24, right: 24, bottom: 20),
@@ -161,7 +214,7 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
                     ),
                   ),
                   Text(
-                    "Kelola proses rekrutmen",
+                    "Review kandidat terbaikmu",
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       color: Colors.grey,
@@ -180,7 +233,6 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
             ],
           ),
           const SizedBox(height: 24),
-          // UPDATED FILTER CHIPS
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -238,27 +290,11 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
     final mhs = data['mahasiswa'] ?? {};
     final program = data['program_magang'] ?? {};
     final status = (data['status'] ?? 'pending').toString().toLowerCase();
-
-    // Warna Status Lengkap
     Color statusColor = Colors.orange;
-    Color statusBg = Colors.orange.shade50;
-    if (status == 'diterima') {
-      statusColor = Colors.green;
-      statusBg = Colors.green.shade50;
-    }
-    if (status == 'ditolak') {
-      statusColor = Colors.red;
-      statusBg = Colors.red.shade50;
-    }
-    if (status == 'berlangsung') {
-      statusColor = Colors.blue;
-      statusBg = Colors.blue.shade50;
-    }
-    if (status == 'selesai') {
-      statusColor = Colors.purple;
-      statusBg = Colors.purple.shade50;
-    }
-
+    if (status == 'diterima') statusColor = Colors.green;
+    if (status == 'ditolak') statusColor = Colors.red;
+    if (status == 'berlangsung') statusColor = Colors.blue;
+    if (status == 'selesai') statusColor = Colors.purple;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
@@ -320,7 +356,7 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: statusBg,
+                          color: statusColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -335,7 +371,6 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Colors.grey),
               ],
             ),
           ),
@@ -344,12 +379,41 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
     );
   }
 
-  // --- DETAIL SHEET (Sama persis dengan Dashboard Mitra yang baru) ---
+  Widget _buildEmptyState() => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.folder_open_rounded, size: 80, color: Colors.grey.shade300),
+        const SizedBox(height: 16),
+        Text(
+          "Belum ada pelamar",
+          style: GoogleFonts.plusJakartaSans(
+            color: Colors.grey.shade500,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  // --- DETAIL SHEET (UPDATED WITH DATA LENGKAP & CHAT) ---
   void _showDetailSheet(Map<String, dynamic> data) {
     final mhs = data['mahasiswa'] ?? {};
     final status = (data['status'] ?? 'pending').toString().toLowerCase();
     final cvUrl = data['file_cv'];
     final transkripUrl = data['transkrip_nilai'];
+
+    // Ambil ID Mahasiswa dari row pendaftaran biar aman
+    final int mahasiswaId =
+        (data['mahasiswa_id'] as int?) ?? (mhs['id'] as int?) ?? 0;
+
+    // DATA LENGKAP
+    final nim = mhs['nim'] ?? '-';
+    final universitas = mhs['universitas'] ?? '-';
+    final gender = mhs['gender'] ?? '-';
+    final alamat = mhs['alamat'] ?? 'Alamat belum diisi';
+    final namaMhs = mhs['nama'] ?? 'Mahasiswa';
+    final String? fotoMhs = mhs['foto_profil'];
 
     showModalBottomSheet(
       context: context,
@@ -375,6 +439,8 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
               ),
             ),
             const SizedBox(height: 20),
+
+            // HEADER PROFILE + CHAT BUTTON
             Row(
               children: [
                 CircleAvatar(
@@ -390,7 +456,7 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        mhs['nama'] ?? 'Unknown',
+                        namaMhs,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -403,9 +469,51 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
                     ],
                   ),
                 ),
+                // TOMBOL CHAT (Hanya jika diterima/berlangsung)
+                if (status == 'diterima' || status == 'berlangsung')
+                  IconButton(
+                    onPressed: () => _openChat(mahasiswaId, namaMhs, fotoMhs),
+                    icon: const CircleAvatar(
+                      backgroundColor: Colors.green,
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // DATA KANDIDAT
+            Text(
+              "Detail Kandidat",
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow("NIM", nim),
+                  _buildDetailRow("Universitas", universitas),
+                  _buildDetailRow("Jenis Kelamin", gender),
+                  const Divider(height: 16),
+                  _buildDetailRow("Alamat", alamat),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
             Text(
               "Dokumen Pendukung",
               style: GoogleFonts.plusJakartaSans(
@@ -436,7 +544,7 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
             ),
             const SizedBox(height: 12),
 
-            // LOGIC TOMBOL LENGKAP
+            // ACTION BUTTONS
             if (status == 'pending') ...[
               Row(
                 children: [
@@ -577,6 +685,38 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
     );
   }
 
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.grey,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const Text(": ", style: TextStyle(color: Colors.grey)),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFileTile(String title, IconData icon, VoidCallback onTap) {
     return ListTile(
       onTap: onTap,
@@ -591,7 +731,7 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: primaryColor),
+        child: Icon(icon, color: const Color(0xFF19A7CE)),
       ),
       title: Text(
         title,
@@ -601,29 +741,6 @@ class _PelamarPageState extends ConsumerState<PelamarPage> {
         ),
       ),
       trailing: const Icon(Icons.open_in_new, size: 18, color: Colors.grey),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.folder_open_rounded,
-            size: 80,
-            color: Colors.grey.shade300,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "Belum ada pelamar",
-            style: GoogleFonts.plusJakartaSans(
-              color: Colors.grey.shade500,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
